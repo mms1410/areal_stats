@@ -63,3 +63,5 @@ gamma <- data[bundesland == land & (year(date) == 2022),
               by = .(name_rki, year = format(date, "%Y"))][ , yearly_cases]
 
 graphseg::agraph(gamma = gamma, graph = graph)
+
+traceback()
