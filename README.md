@@ -3,13 +3,12 @@ Repository for seminar on areal statistics at LMU ST22/23
 
 ## Project structure
 
-.
-├── attic
-|   └── scratch.R
-├── R
-│   └── 01.R
-├── data
-|   ├── data.RDS
-|   └── geom_mapping.RDS
-├── LISCENCE
-└── README.md
+    .
+    ├── attic               
+    ├── data                  # actual data is not uploaded
+    │   ├── data.RDS          # data without geometry       
+    │   └── geom_mapping.RDS  # data with columns 'name_rki' and 'geometry'
+    ├── R   
+    │   └── 01.R
+    ├── LICENSE
+    └── README.md
