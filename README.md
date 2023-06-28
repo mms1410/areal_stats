@@ -1,15 +1,15 @@
-# areal_stats
+# Introduction to statistical analysis  of areal data
 Repository for seminar on areal statistics at LMU ST22/23
 
-## project structure
+## Project structure
 
 .
 ├── attic
-│   └── scratch.R
-├── data
-│   ├── data.RDS            # data without geometry
-│   └── geom_mapping.RDS    # data with two columns name_rki and geometry
-├── LICENSE
+|   └── scratch.R
 ├── R
-│   └── 01.R
+│   └── 01.R
+├── data
+|   ├── data.RDS
+|   └── geom_mapping.RDS
+├── LISCENCE
 └── README.md
