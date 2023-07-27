@@ -1,0 +1,148 @@
+---
+title: 'Seminar: Introduction to statistical analysis of areal data'
+subtitle: "Application Presentation"
+author: "Sven Maurice Morlock"
+date: "`r Sys.Date()`"
+output:
+  beamer_presentation: default
+bibliography: ../assets/references.bib
+header-includes:
+  - \setbeamertemplate{navigation symbols}{}
+  - \setbeamertemplate{footline}[page number]
+  - \usepackage{relsize}
+  - \usepackage{multicol}
+  - \usepackage[font=small,labelfont=bf]{caption}
+  - \usepackage{nonfloat}
+  - \setlength{\columnsep}{+2.5cm}
+---
+```{r, echo = FALSE, include = FALSE}
+source("functions.R")
+source("segmentation.R")
+#knitr::opts_chunk(include = FALSE)
+path_assets_folder <- file.path(path_project_root, "assets")
+```
+# Motivation I
+
+\begin{multicols}{2}
+    \includegraphics[width=95mm]{../assets/spatial-signal-example.pdf}
+\columnbreak
+  \begin{itemize}
+    \item Corona cases in Germany
+    \item We can see some regional patterns
+    \item Can some districts be clustered?
+  \end{itemize}
+\end{multicols}
+
+# Motivation II
+```{r data-description, echo = FALSE}
+knitr::include_graphics(file.path(path_assets_folder, "signal-description-1.pdf"))
+```
+
+# Setup I
+
+- data on corona cases in Germany for years 2020 to 2022
+
+- 396 districts (2 non-adjacent)
+
+- interpret each district as vertex/node
+
+- (initial) edge weight 1/0 if districts adjacent or not
+
+- Spatial segmentation/clustering based on @graph_seg_paper via adaptive ridge
+  
+  - only one 'spatial signal' no other variables are taken into account
+  
+  - spatial signal ${\mathrel{\widehat{=}}}$ $\frac{\text{cummulative cases in period}}{\text{avg. population in period}}$
+
+# Setup II (adaptive ridge)
+
+- in each iteration $l$:
+
+  - calculate new weights $v_{k}$
+  
+  - calculate new signal $\theta_{k}$
+  
+  - minimize $l^{pen}(\boldsymbol{\theta}, \mathcal{V}^{l}) = l(\boldsymbol{\theta}) + \frac{\lambda}{2} + \Sigma_{j\sim k}v_{j,k}^{(l)}(\theta_{j} - \theta_{i})^{2}$
+  
+- after successful iteration we will end up with new signals for each district 
+
+- but due to regularization some districts will have the same signal (we are penalizing difference in signals)
+
+- districts having same signal assigned to same cluster
+
+- this is done for some schedule of $\lambda$ values 
+  - $\rightsquigarrow$ assessment after each iteration cycle by AIC/BIC/GCV
+
+
+# Results I
+
+```{r results-1, echo = FALSE}
+knitr::include_graphics(file.path(path_assets_folder, "penalization-paths.pdf"))
+```
+
+
+# Results II (2020)
+
+```{r results-2, echo = FALSE}
+knitr::include_graphics(file.path(path_assets_folder, "segmentation-2020-min.pdf"))
+```
+
+# Results III (2021)
+
+```{r results-3, echo = FALSE}
+knitr::include_graphics(file.path(path_assets_folder, "segmentation-2021-min.pdf"))
+```
+
+# Results IV (2022)
+
+```{r results-4, echo = FALSE}
+knitr::include_graphics(file.path(path_assets_folder, "segmentation-2022-min.pdf"))
+```
+
+
+# Discussion
+
+- We can see different results depending on chosen IC and time period
+
+- By design only 1 variable (graph signal) is considered
+
+  - no covariates included
+  
+  - but also no notion of dependent/independent variable as in regression
+  
+- limited interpretation
+
+# Backup
+
+# Backup
+
+- Adaptive ridge iteratively optimizes:
+
+\begin{equation} \boldsymbol{\theta}^{(l)} = (\boldsymbol{\Sigma}^{-1} + \lambda \boldsymbol{K}^{(l-1)})^{-1}\boldsymbol{\Sigma}^{-1} \boldsymbol{x} \end{equation}
+  
+\begin{equation}  v_{j,k}^{(l)} = \frac{1}{(\theta_{j}^{(l)} - \theta_{k}^{(l)})^{2} + c} \end{equation}
+
+# Backup
+```{r backup-1, echo = FALSE}
+knitr::include_graphics(file.path(path_assets_folder, "result-2022-factornumeric.pdf"))
+```
+
+# Backup
+
+```{r backup-2, echo = FALSE}
+knitr::include_graphics(file.path(path_assets_folder, "result-2022-regpath.pdf"))
+```
+
+# Backup
+
+```{r backup-3, echo = FALSE}
+knitr::include_graphics(file.path(path_assets_folder, "constant-signal-wave-1.pdf"))
+```
+
+# Backup
+
+```{r backup-4, echo = FALSE}
+knitr::include_graphics(file.path(path_assets_folder, "constant-signal-wave-2.pdf"))
+```
+
+# References
