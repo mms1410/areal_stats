@@ -12,7 +12,9 @@
     │   ├── data.RDS          # data without geometry
     │   └── geom_mapping.RDS  # data with columns 'name_rki' and 'geometry'
     ├── R
-    │   └── 01.R
+    │   ├── segmentation.R
+    │	├── functions.R
+    │	└── plots.R
     ├── LICENSE
     └── README.md
     
