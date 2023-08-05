@@ -13,8 +13,8 @@
     │   └── geom_mapping.RDS  # data with columns 'name_rki' and 'geometry'
     ├── R
     │   ├── segmentation.R
-    │	├── functions.R
-    │	└── plots.R
+    │   ├── functions.R
+    │   └── plots.R
     ├── LICENSE
     └── README.md
     
