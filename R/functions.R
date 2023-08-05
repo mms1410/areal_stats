@@ -1,16 +1,29 @@
-library(ggplot2)
-library(patchwork)
-library(latex2exp)
-library(checkmate)
+
 #===============================================================================
 # Graphics
-gg_save <- function(filename, save_folder = file.path("assets", "plots"), device = "pdf") {
+add_custom_caption <- function(gg_object, gg_caption, h_just = 0.5) {
+  #'
+  #' Add caption to ggplot object
+  #'
+  #' @param gg_object: ggplot object
+  #' @param gg_caption: sting with caption
+  #' @param h_just: numeric value for horizontal adjustment
+  #' 
+  assert("ggplot" %in% class(gg_object))
+  assertString(gg_caption)
+  assertNumeric(h_just)
+  
+  gg_object +
+    labs(caption = element_text(gg_caption))+ theme(plot.caption = element_text(hjust = h_just))  
+}
+
+gg_save <- function(filename, save_folder = file.path("assets", "plots"), device = "pdf", crop = TRUE) {
   #'
   #' Save last invoked ggplot object.
   #'
-  #' @param filename:
-  #' @param save_folder:
-  #' @device:
+  #' @param filename: string with filename (no pdf ending)
+  #' @param save_folder: string of folder location
+  #' @device: "pdf"
   #'
   assertString(path_project_root)
   assertString(filename)
@@ -22,6 +35,9 @@ gg_save <- function(filename, save_folder = file.path("assets", "plots"), device
   
   filename <- paste0(filename, ".pdf")
   ggsave(filename = file.path(path_save_folder,filename), device = device)
+  if (crop) {
+    knitr::plot_crop(file.path(path_save_folder,filename))
+  }
 }
 
 penalize_plot <- function(result_graphseg, lambda, district_names,
@@ -30,15 +46,14 @@ penalize_plot <- function(result_graphseg, lambda, district_names,
                           gg_title = "",
                           plot_min_ic = FALSE) {
   #'
-  #' Create (gg-)plot of penalization-path.
+  #' Create plot of regularization path
   #'
-  #' @param result_graphseg:
-  #' @param lambda:
-  #' @param district_names:
-  #' @param y_lab:
-  #' @param x_lab:
-  #' @param gg_title:
-  #'
+  #' @param result_graphseg: list containing results from agraph
+  #' @param lambda: numeric vector of penalization parameters
+  #' @param district_names: character vector of district names
+  #' @param y_lab: string for y-axis title
+  #' @param x_lab: string for x-axis title
+  #' @param gg_title: string for plot title
   #'
   assertList(result_graphseg)
   assertNumeric(lambda)
@@ -117,7 +132,7 @@ comparison_plot <- function(geom_mapping, results_list, gg_title = "",
                             as_factor = TRUE, legend_title = "Signal",
                             plot_legend = FALSE, plot_ticks = TRUE) {
   #'
-  #' @param geom_mapping:
+  #' @param geom_mapping: data.table with mapping of geom to rki_name
   #' @param results_list:
   #' @param gg_title:
   #' @param legend_title:
@@ -126,7 +141,11 @@ comparison_plot <- function(geom_mapping, results_list, gg_title = "",
   #'
   assertDataTable(geom_mapping)
   assertList(results_list)
-  
+  assertString(gg_title)
+  assertLogical(as_factor)
+  assertString(legend_title)
+  assertLogical(plot_legend)
+  assertLogical(plot_ticks)
   
   results <- do.call(cbind, results_list)
   assert(nrow(results) == nrow(geom_mapping))
@@ -178,13 +197,17 @@ hist_plot <- function(dtbl, signal_col, gg_title = "", y_lab = "", x_lab = "sign
   #'
   #' Plot histogram.
   #' 
-  #' @param dtbl:
-  #' @param signal_col:
-  #' @param gg_title:
-  #' @param y_lab:
-  #' @param x_lab:
+  #' @param dtbl: data.table containing necessary information
+  #' @param signal_col: string of column name for signal column
+  #' @param gg_title: string for plot title
+  #' @param y_lab: string for y-lab title
+  #' @param x_lab: string for y-lab title
   #'
+  assertDataTable(dtbl)
   assert(signal_col %in% colnames(dtbl))
+  assertString(gg_title)
+  assertString(y_lab)
+  assertString(x_lab)
   
   dtbl %>% 
     ggplot() +
@@ -198,30 +221,34 @@ get_ic_lambda <- function(ic_value, result_graphseg, ic, lambda) {
   #'
   #' Return corresponding lambda value for given value of information criterion.
   #'
-  #' @param ic_value:
-  #' @param result_graphseg:
-  #' @param ic:
-  #' @param lambda:
+  #' @param ic_value: numeric value of some ic value
+  #' @param result_graphseg: list of results from agraph
+  #' @param ic: string of either "aic", "bic" or "gcv"
+  #' @param lambda: numeric vector of penalization parameters
   #'
   assertNumeric(ic_value)
   assertList(result_graphseg)
   assertChoice(ic, c("aic", "bic", "gcv"))
+  assertNumeric(lambda)
   
   idx <- which(result_graphseg$aic == ic_value)
   lambda[idx]
 }
 
-get_cluster_table <- function(result_graphseg, ic, ic_value, mapping = NULL) {
+get_cluster_table <- function(result_graphseg, ic, ic_value = NULL, mapping = NULL) {
   #'
-  #' 
+  #' Create a datatable with clustering results
   #'
-  #' @param result_graphseg:
-  #' @param ic:
-  #' @param ic_value:
-  #' @param mapping:
+  #' @param result_graphseg: list of results from agraph
+  #' @param ic: string of either "aic", "bic" or "gcv"
+  #' @param ic_value: numeric value of some ic value
+  #' @param mapping: character vector where the ith element contain the name for the ith signal
   #' 
   assertList(result_graphseg)
   assertChoice(ic, c("aic", "bic", "gcv"))
+  if (is.null(ic_value)) {
+    ic_value <- min(result_graphseg[[ic]])
+  }
   assertNumeric(ic_value)
   assert(ic_value %in% result_graphseg[[ic]])
   
@@ -235,7 +262,7 @@ get_cluster_table <- function(result_graphseg, ic, ic_value, mapping = NULL) {
     if (!is.null(mapping)) {
       members <- mapping[members]
     }
-    list(members = members)
+    members
   }
   
   result <- as.data.table(cbind(
@@ -248,27 +275,69 @@ get_cluster_table <- function(result_graphseg, ic, ic_value, mapping = NULL) {
   result[]
 }
 
+get_moran_table <- function(signals, signal_names, lweights, digits = 3) {
+  #'
+  #' Create datatable summarizeng results from moran.test()
+  #'
+  #' @param signals: list of underlying signals
+  #' @param signal_names: character vector of names for each element in signals
+  #' @param lweights: listw object of adjacency weights
+  #' @param digits: integer for rounding numbers
+  #'
+  assertList(signals)
+  assertCharacter(signal_names)
+  assert("listw" %in% class(lweights))
+  assert(length(signal_names) == length(signals))
+  
+  moran_table <- data.table(name = character(0),
+                            moran_i = numeric(0),
+                            moran_i_std = numeric(0),
+                            p_val = numeric(0),
+                            expectation = numeric(0),
+                            variance = numeric(0))
+  for (idx in seq(signals)) {
+    moran_smry <- spdep::moran.test(signals[[idx]], lweights)
+    moran_table <- rbind(moran_table, 
+                         data.table(name = signal_names[idx],
+                                    moran_i = round(moran_smry[[3]][1], digits),
+                                    moran_i_std = round(moran_smry[[1]], digits),
+                                    p_val = moran_smry[[2]],
+                                    expectation = round(moran_smry[[3]][2], digits),
+                                    variance = round(moran_smry[[3]][3], digits)
+                         ))
+    
+  }
+  moran_table[]
+}
+
 get_n_clusters <- function(result_graphseg, ic, ic_value){
   #'
   #' Create vector containing #members of each cluster
   #'
-  #' @param result_graphseg:
-  #' @param ic:
-  #' @param ic_value:
+  #' @param result_graphseg: list of agraph result
+  #' @param ic: string, either "aic", "bic" or "gcv"
+  #' @param ic_value: numeric value of one ic value
   #' 
+  assertList(result_graphseg)
+  assertChoice(ic, c("aic", "bic", "gcv"))
+  assertNumeric(ic_value)
+  assert(ic_value %in% result_graphseg[[ic]])
+  
   unlist(get_cluster_table(result_graphseg, ic, ic_value)[, n_cluster])
 }
  
 get_ic_cluster_table <- function(result_graphseg, ic, lambda) {
   #'
+  #' Create datatable describing results of graph segmentation.
   #'
-  #' @param result_graphseg:
-  #' @param ic:
-  #' @param lambda:
+  #' @param result_graphseg: list of agraph result
+  #' @param ic: string, either "aic", "bic" or "gcv"
+  #' @param lambda: numeric vector of penalzation parameters
   #'
   #'
   assertChoice(ic, c("aic", "bic", "gcv"))
   assertList(result_graphseg)
+  assertNumeric(lambda)
   
   result <- data.table()
   for (idx in seq(nrow(result_graphseg$result))) {
@@ -296,43 +365,176 @@ get_ic_cluster_table <- function(result_graphseg, ic, lambda) {
   result
 }
 
-stack_cluster_tables <- function(result_graphseg, lambda) {
+cluster_size_ic_plot <- function(result_graphseg, ic, lambda) {
   #'
+  #' Plot 4 subplots of graph segmentation.
   #'
-  #'
+  #' @param result_graphseg: list of results from agraph
+  #' @param ic: string "aic", "bic" or "gcv"
+  #' @param lambda: numeric vector of penalization parameters
   #'
   assertList(result_graphseg)
-  assertNumeric(lambda)
-  assert(length(lambda) == nrow(result_graphseg$result))
+  assertChoice(ic, c("aic", "bic", "gcv"))
+  assertNumeric("lambda")
   
-  aic_table <- get_ic_cluster_table(result_graphseg, "aic", lambda)
-  bic_table <- get_ic_cluster_table(result_graphseg, "bic", lambda)
-  gcv_table <- get_ic_cluster_table(result_graphseg, "gcv", lambda)
+  ic_vals <- result_graphseg[[ic]]
+  n_clusters <- numeric(0)
+  avg_districts <- numeric(0)
+  median_districts <- numeric(0)
   
-  dtbl <- (rbindlist(list(
-    aic_table[, group := "aic"],
-    bic_table[, group := "bic"],
-    gcv_table[, group := "gcv"]
-  )))
-  dtbl
+  for(idx in seq(ic_vals)) {
+    cluster_table <- get_cluster_table(result_graphseg,
+                                       ic = ic,
+                                       ic_value = ic_vals[idx])
+    n_cluster <- nrow(cluster_table)
+    avg_district <- cluster_table[, unlist(n_cluster)] %>%  mean()
+    median_district <- cluster_table[, unlist(n_cluster)] %>%  median()
+    
+    n_clusters <- append(n_clusters, n_cluster)
+    avg_districts <- append(avg_districts, avg_district)
+    median_districts <- append(median_districts, median_district)
+  }
+  n_clusters
+  avg_districts
+  median_districts
+  
+  
+  ic_plot <- ggplot() +
+    geom_line(aes(x = lambda, y = ic_vals)) +
+    scale_x_log10() +
+    labs(title = toupper(ic),
+         x = TeX(r"($log_{10}\lambda$)"),
+         y = "",
+         caption = "(a)") +
+    theme(plot.caption = element_text(hjust = 0.5))
+  
+  n_cluster_plot <- ggplot() +
+    geom_line(aes(x = lambda, y = n_clusters)) +
+    scale_x_log10() +
+    labs(title = "Number of areas",
+         x = TeX(r"($log_{10}\lambda$)"),
+         y = "",
+         caption = "(b)") +
+    theme(plot.caption = element_text(hjust = 0.5))
+  
+  avg_districts_plot <- ggplot() +
+    geom_line(aes(x = lambda, y = avg_districts)) +
+    scale_x_log10() +
+    labs(title = "Average number of districts p. area",
+         x = TeX(r"($log_{10}\lambda$)"),
+         y = "",
+         caption = "(c)") +
+    theme(plot.caption = element_text(hjust = 0.5))
+  
+  median_districts_plot <- ggplot() +
+    geom_line(aes(x = lambda, y = median_districts)) +
+    scale_x_log10() +
+    labs(title = "Median number of districts p. area",
+         x = TeX(r"($log_{10}\lambda$)"),
+         y = "",
+         caption = "(d)") +
+    theme(plot.caption = element_text(hjust = 0.5))
+  
+  
+  (ic_plot + avg_districts_plot) / (n_cluster_plot + median_districts_plot)
+  
 }
 
-plot_lambda_vs_ic <- function(cluster_table, gg_title = "",
-                            x_lab =TeX(r"($log_{10}\lambda$)"),
-                            y_lab = "", group_selection = NULL) {
+signal_boxplot <- function(signal, gg_title = NULL) {
   #'
+  #' Plot boxplot.
   #'
-  #' @param result_graphseg:
-  #' @param gg_title:
-  #' @param x_lab:
-  #' @param y_lab:
-  #'
+  #' @param signal: numeric vector of underlying signal
+  #' @param gg_title: string for plot title.
+  #' 
+  assertNumeric(signal)
+  assertString(gg_title)
   
-  assertDataTable(cluster_table)
-  assert(all(c("ic_value", "n_clusters", "mean_size", "median_size", "q1", "q3", "lambda", "group") %in% colnames(cluster_table)))
+  if (is.null(gg_title)) {
+    gg_title = ""
+  }
+  ggplot() +
+    geom_boxplot(aes(y = signal)) +
+    theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank())+
+    ylab("Spatial Signal") +
+    ggtitle(gg_title)
+}
+
+table_plot <- function(signal, size = 3.5) {
+  #'
+  #' Plot frequency table.
+  #'
+  #' @param signal: numeric vector of underlying signal
+  #' @param size: numeric scaling factor for freq. table size
+  #'
+  assertNumeric(signal)
+  assertNumber(size)
   
-  ggplot(cluster_table) +
-    geom_line(aes(x = lambda, y = ic_value, group = group, color = group)) +
-    scale_x_log10() +
-    xlab(x_lab)
+  tbl <- signal %>% unique() %>% round(2) %>% table() %>% data.frame()
+  colnames(tbl) <- c("Underlying Signal", "Frequency")
+  ggplot() +
+    annotate(geom = "table",
+             x = 1, y = 1, size = size,
+             label = list(tbl)) +
+    theme_void()
+}
+
+histogram_plot <- function(signal, gg_title = NULL, size = 3.5, threshold = 10) {
+  #'
+  #' Plot histogram if number of obs > threshold, else plot freq. table.
+  #'
+  #' @param signal: numeric vector of underlying signal
+  #' @param gg_title: string with plot title
+  #' @param size: scaling factor of freq. table
+  #' @param threshold: numeric number for histogram vs. freq. plot decision
+  #' 
+  assertNumeric(signal)
+  assertString(gg_title)
+  assertNumber(size)
+  assertInt(threshold)
+  
+  signal <- unique(signal)
+  if (is.null(gg_title)) {
+    gg_title = ""
+  }
+  if (length(signal) < threshold) {
+    p <- table_plot(unique(signal), size)
+  } else {
+    p <- ggplot() +
+      geom_histogram(aes(x = signal)) +
+      xlab("Underlying Signal") 
+  }
+  p + ggtitle(gg_title)
+}
+
+descriptive_signal <- function(signal, year, gg_title = NULL) {
+  #'
+  #' Plot histogram and boxplot next to each other.
+  #' 
+  #' @param signal: numeric vector of underlying signal
+  #' @param year: numeric number for year
+  #' @param gg_title: string for title
+  #'
+  assertNumeric(signal)
+  assertNumber(year)
+  assertString(gg_title)
+  
+  hist_plot <- ggplot() +
+    geom_histogram(aes(x = signal)) +
+    xlab("Spatial Signal")
+  
+  box_plot <- ggplot() +
+    geom_boxplot(aes(y = signal)) +
+    theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank())+
+    ylab("Spatial Signal")
+  
+  if (is.null(gg_title)) {
+    gg_title = paste0("Histogram and Boxplot of Spatial Signal for Year ", year)
+  }
+  hist_plot + box_plot & 
+    plot_annotation(title = gg_title)
 }
